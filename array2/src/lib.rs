@@ -1,3 +1,6 @@
+pub mod array2;
+
+
 pub enum TypeOfIteration {
     RowMajor,
     ColumnMajor
