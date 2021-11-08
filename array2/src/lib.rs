@@ -92,6 +92,23 @@ impl<T: Clone> Array2<T> {
 
     }
 
+    pub fn trim(&mut self){        
+        if self.width % 2 != 0 {
+            //trim the farthest right column from the self.        
+            for i in (0..self.height()).rev() {
+                self.remove(self.height()-1, i);
+            }        
+            self.width -= 1; 
+            
+        }
+        if self.height() % 2 != 0 {
+            //trim the bottom row from the self.
+            for i in (0..self.width).rev(){
+                self.remove(i, self.width);
+            }       
+        }
+    }
+
     pub fn iter_row_major(&self) -> impl Iterator<Item = (usize, usize, &T)> {
         // The compiler knows to optimize away the div-mod ops.
         self.data
@@ -128,17 +145,7 @@ mod tests {
     #[test]
     fn test_array() {
         let mut a2 = Array2::from_row_major(3, 3, vec![1,2,3,4,5,6,7,8,9]).unwrap();
-        for i in (0..a2.height()).rev() {
-            a2.remove(a2.height()-1, i);
-        }
-        println!("{:#?}", a2);
-        let mut a2_trim = Array2::from_row_major(a2.width-1, a2.height, a2.data).unwrap();
-        
-        for i in (0..a2_trim.width()).rev(){
-            a2_trim.remove(i, a2_trim.width());
-        }
-        
-        //assert_eq!(a2.data, [1,2,4,5,7,8]);
-        assert_eq!(a2_trim.data, [1,2,4,5])
+        a2.trim();        
+        assert_eq!(a2.data, [1,2,4,5])
     }
 }
