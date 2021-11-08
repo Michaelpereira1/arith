@@ -1,4 +1,6 @@
+use std::process::exit;
 use array2::Array2;
+use csc411_image::Pixel;
 
 struct Image_rgb {
     R: usize,
@@ -27,7 +29,32 @@ struct Image_cos {
     c: usize,
     d: usize,
 }
+    
+pub fn into_array(filename: &str) -> Array2<csc411_image::Pixel> {
+    let img = csc411_image::Image::read(Some(filename)).unwrap();
+    let mut ppm_array2 = array2::Array2::from_row_major(img.width as usize, img.height as usize, img.pixels).unwrap();
+    ppm_array2.trim();
+    return ppm_array2;
+}
 
-fn get_RGB (pixel_array: Array2<image::pixels) -> Array2<Image_vid> {
+pub fn to_float(pixel_array: Array2<Pixel>) {
+    for i in pixel_array.iter_row_major() {
+        let curr = &i.2;
+        match curr {
+            Pixel::Gray(Gray) => {
+                exit(0);
+            }
+
+            Pixel::Rgb(rgb) => {
+                
+            }
+            
+        }
+    }
     
 }
+
+
+
+
+
