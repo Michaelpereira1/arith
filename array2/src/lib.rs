@@ -1,132 +1,117 @@
-pub mod array2;
+// `Array2` provides a fixed-size 2-dimensional array.
+// An error that can arise during the use of an [`Array2D`].
+//
+// [`Array2D`]: struct.Array2D.html
+// #[derive(Debug, Eq, PartialEq)]
+// pub enum Error {
+//     /// The indices (coordinates) were out of bounds.
+//     IndicesOutOfBounds(usize, usize),
+// }
 
-
-pub enum TypeOfIteration {
-    RowMajor,
-    ColumnMajor
-}
-#[derive(Clone)]
-pub struct Array2<T> {
-    pub v: Vec<T>,
-    pub width:usize,
-    pub height: usize,
-}
-
-impl<T> Default for Array2<T>{
-    fn default() -> Self {
-        Self::new()
-    }
+/// Elements contained must support `Clone`
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Array2<T: Clone> {
+    width: usize,
+    height: usize,
+    data: Vec<T>,
 }
 
-pub struct Array2Iter<'a, T>{
-    pub v: &'a [T],
-    pub col: usize,
-    pub row: usize,
-    pub dim:usize,
-    pub type_of_iter:TypeOfIteration
-}
-
-impl <'a, T> Array2Iter<'a,T> {
-    pub fn new(v: &'a [T], d:usize, toi:TypeOfIteration) -> Self {
-        Self {v, col:0, dim:d, row: 0, type_of_iter: toi} 
-    }
-}
-
-impl<T> Array2<T> {
-    pub fn new() -> Self {
+impl<T: Clone> Array2<T> {
+    /// Creates a new `Array2`.
+    ///
+    /// # Arguments
+    ///
+    /// * `width`: the width of the `Array2`.
+    /// * `height`: the height of the `Array2`.
+    /// * `val`: the value to fill every element with
+    pub fn new(width: usize, height: usize, val: T) -> Self {
+        let data = vec![val; width * height];
         Array2 {
-            v: Vec::<T>::new(),
-            width: 0,
-            height: 0,
+            width,
+            height,
+            data,
         }
     }
 
-    pub fn new_h_w(vec: Vec<T>, dim: usize) -> Self { 
-        Array2 {
-            v: vec,
-            width: dim,
-            height: dim
+    /// Creates a new `Array2` from a Vec<T>.
+    ///
+    /// # Arguments
+    ///
+    /// * `width`: the width of the `Array2`
+    /// * `height`: the height of the `Array2`
+    /// * `values`: A Vec<T>, in row-major order, whose
+    ///             length must be `width` * `height`.
+    pub fn from_row_major(width: usize, height: usize, values: Vec<T>) -> Result<Self, String> {
+        if width * height != values.len() {
+            Err(format!(
+                "Values has {} elements, which is not the product of width {} and height {}",
+                values.len(),
+                width,
+                height,
+            ))
+        } else {
+            Ok(Array2 {
+                width,
+                height,
+                data: values,
+            })
         }
     }
 
-    pub fn at(&self, x:usize, y:usize) ->  Option<&T> {
-        let loction = x * self.height + y;
-        if loction < self.v.len() {
-            return Some(&self.v[loction]);
-        }
-        else{
+    /// The height
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    /// The width
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// Returns a reference to the element at the given `column` and `row`
+    /// as long as that index is in bounds
+    /// (wrapped in [`Some`]). Returns [`None`] if out of bounds.
+    pub fn get(&self, c: usize, r: usize) -> Option<&T> {
+        self.get_index(c, r).map(|index| &self.data[index])
+    }
+
+    pub fn get_mut(&mut self, c: usize, r: usize) -> Option<&mut T> {
+        self.get_index(c, r).map( move |index| &mut self.data[index])
+    }
+
+    fn get_index(&self, c: usize, r: usize) -> Option<usize> {
+        if c < self.width && r < self.height {
+            Some(r * self.width + c)
+        } else {
             None
         }
     }
 
-    pub fn make_iter(&self, toi:TypeOfIteration) -> Array2Iter<T>{
-        return Array2Iter::new(&self.v, self.height, toi);
+    pub fn iter_row_major(&self) -> impl Iterator<Item = (usize, usize, &T)> {
+        // The compiler knows to optimize away the div-mod ops.
+        self.data
+            .iter()
+            .enumerate()
+            .map(move |(i, v)| (i % self.width, i / self.width, v))
     }
-}
 
-impl<'a, T> Iterator for Array2Iter<'a, T> {
-    type Item = &'a T;
-    
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.type_of_iter {
-            TypeOfIteration::RowMajor => {
-                if self.col < self.v.len(){
-                    self.row = self.col;
-                    self.col += 1;
-                    return Some(&self.v[self.row]);
-                }
-                else{
-                    return None
-                }
-            }
-            TypeOfIteration::ColumnMajor => {
-                if self.row >= self.v.len()/self.dim{
-                    self.col += 1;
-                    self.row = 0;
-                }
-                if self.col < self.dim{
-                    let r = &self.v[self.row * self.dim + self.col];
-                    self.row += 1;
-                    return Some(r);
-                }
-                else{
-                    return None
-                }
-            }
-        }
-    }
-}  
+    pub fn iter_col_major(&self) -> impl Iterator<Item = (usize, usize, &T)> {
+        (0..self.width)
+            // get the start of every column as a fresh iter and keep the index of the column
+            // skip advances the iterator without yielding items
+            .map(move |c| (c, self.data.iter().skip(c)))
+            // do a flat_map for all the columns
+            .flat_map(move |(c, col)| {
+                // for each iterator on a column, step forward by width for the correct next element in that column
+                // step_by yields an item and then advances the iterator
+                col.step_by(self.width)
+                    // enumerate down the columns to get the index of the row
+                    .enumerate()
+                    .map(move |(r, val)| (c, r, val))
+            })
 
-#[cfg(test)]
-mod tests {
-    use crate::Array2;
-
-    #[test]
-    fn test_default_construction() {
-        let a2 = Array2::<String>::new();
-        assert_eq!(a2.height, 0);
-        assert_eq!(a2.width,0);
-    }
-    #[test]
-    fn test_udef_construction() {
-        let a2 = Array2::<i32>::new_h_w(vec![1,2,3], 3);
-        assert_eq!(a2.width,3);
-        assert_eq!(a2.height,3);    
-    }
-    #[test]
-    fn test_array_bounds() {
-        let a2 = Array2::<i32>::new_h_w(vec![1,2,3,4,5,6], 3);
-        assert_eq!(a2.at(0, 1), Some(&2));
-        assert_eq!(a2.at(1,0), Some(&4));
-        assert_eq!(a2.at(2,0), None);
-    }
-    
-    #[test]
-    fn test_array_iteration() {
-        let a2 = Array2::<i32>::new_h_w(vec![1,2,3,4,5,6,7,8,9], 3);
-        let sum = a2.make_iter(crate::TypeOfIteration::RowMajor).fold(0, |acc, x| acc + x);
-        let sum2 = a2.make_iter(crate::TypeOfIteration::ColumnMajor).fold(1, |acc, x| acc + x);
-        assert_eq!(sum, 45);
-        assert_eq!(sum2, 46);
+        // (0..self.width)
+        //    .flat_map(move |c| (0..self.height)
+        //    .map(move |r| (c, r, self.get(c, r).unwrap())))
     }
 }
