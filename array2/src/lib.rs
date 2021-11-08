@@ -87,6 +87,11 @@ impl<T: Clone> Array2<T> {
         }
     }
 
+    pub fn remove(&mut self, c: usize, r: usize) {
+        self.get_index(c, r).map( move |index|  self.data.remove(index));
+
+    }
+
     pub fn iter_row_major(&self) -> impl Iterator<Item = (usize, usize, &T)> {
         // The compiler knows to optimize away the div-mod ops.
         self.data
@@ -113,5 +118,27 @@ impl<T: Clone> Array2<T> {
         // (0..self.width)
         //    .flat_map(move |c| (0..self.height)
         //    .map(move |r| (c, r, self.get(c, r).unwrap())))
+    }
+}
+
+#[cfg(test)]
+mod tests { 
+    use crate::Array2;  
+
+    #[test]
+    fn test_array() {
+        let mut a2 = Array2::from_row_major(3, 3, vec![1,2,3,4,5,6,7,8,9]).unwrap();
+        for i in (0..a2.height()).rev() {
+            a2.remove(a2.height()-1, i);
+        }
+        println!("{:#?}", a2);
+        let mut a2_trim = Array2::from_row_major(a2.width-1, a2.height, a2.data).unwrap();
+        
+        for i in (0..a2_trim.width()).rev(){
+            a2_trim.remove(i, a2_trim.width());
+        }
+        
+        //assert_eq!(a2.data, [1,2,4,5,7,8]);
+        assert_eq!(a2_trim.data, [1,2,4,5])
     }
 }
