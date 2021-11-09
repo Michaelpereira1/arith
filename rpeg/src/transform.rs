@@ -78,12 +78,13 @@ pub fn rgb_to_comp(rgb_array: Array2<Image_rgb>) -> Array2<Image_vid> {
 
 pub fn block_iteration(vid_array: Array2<Image_vid>) -> Array2<Image_cos> {
     let mut transformed_2x2: Vec<Image_cos> = vec![];
-    for i in (0..vid_array.height() / 2).step_by(2) {
-        for j in (0..vid_array.width() / 2).step_by(2) {
-            let zero_zero = vid_array.get(i,j).unwrap();
-            let zero_one = vid_array.get(i,j+1).unwrap();
-            let one_zero = vid_array.get(i+1,j).unwrap();
-            let one_one = vid_array.get(i+1,j+1).unwrap();
+    println!("width-{},height-{}", vid_array.width(), vid_array.height());
+    for i in (0..vid_array.height()).step_by(2) {
+        for j in (0..vid_array.width()).step_by(2) {
+            let zero_zero = vid_array.get(j,i).unwrap();
+            let zero_one = vid_array.get(j,i+1).unwrap();
+            let one_zero = vid_array.get(j+1,i).unwrap();
+            let one_one = vid_array.get(j+1,i+1).unwrap();
             let avg_pb = (zero_zero.Pb + zero_one.Pb + one_one.Pb + one_zero.Pb) / 4.0;
             let avg_pr = (zero_zero.Pr + zero_one.Pr + one_one.Pr + one_zero.Pr) / 4.0;
             let index_pb = index_of_chroma(avg_pb);
