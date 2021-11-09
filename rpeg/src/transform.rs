@@ -1,5 +1,6 @@
-use std::process::exit;
+use std::{arch::x86_64::_mm256_undefined_si256, process::exit};
 use array2::Array2;
+use csc411_arith::index_of_chroma;
 use csc411_image::Pixel;
 
 #[derive(Debug,Clone,Copy)]
@@ -16,19 +17,14 @@ pub struct Image_vid {
     Pr: f32,
 }
 
-struct Image_2x2 {
+#[derive(Debug,Clone)]
+pub struct Image_cos {
     Pb_avg: f32,
     Pr_avg: f32,
-    Y: f32,
-}
-
-struct Image_cos {
-    Pb_avg: f32,
-    Pr_avg: f32,
-    a: f32,
-    b: f32,
-    c: f32,
-    d: f32,
+    A: f32,
+    B: f32,
+    C: f32,
+    D: f32,
 }
     
 pub fn into_array(filename: &str) -> Array2<csc411_image::Pixel> {
@@ -80,6 +76,58 @@ pub fn rgb_to_comp(rgb_array: Array2<Image_rgb>) -> Array2<Image_vid> {
 
 }
 
+pub fn block_iteration(vid_array: Array2<Image_vid>) -> Array2<Image_cos> {
+    let mut transformed_2x2: Vec<Image_cos> = vec![];
+    for i in (0..vid_array.height() / 2).step_by(2) {
+        for j in (0..vid_array.width() / 2).step_by(2) {
+            let zero_zero = vid_array.get(i,j).unwrap();
+            let zero_one = vid_array.get(i,j+1).unwrap();
+            let one_zero = vid_array.get(i+1,j).unwrap();
+            let one_one = vid_array.get(i+1,j+1).unwrap();
+            let avg_pb = (zero_zero.Pb + zero_one.Pb + one_one.Pb + one_zero.Pb) / 4.0;
+            let avg_pr = (zero_zero.Pr + zero_one.Pr + one_one.Pr + one_zero.Pr) / 4.0;
+            let index_pb = index_of_chroma(avg_pb);
+            let index_pr = index_of_chroma(avg_pr);
+            let mut a = (one_one.Y + zero_one.Y + one_zero.Y + zero_zero.Y) / 4.0;
+            let mut b = (one_one.Y + one_zero.Y - zero_one.Y - zero_zero.Y) /4.0;
+            let mut c = (one_one.Y - one_zero.Y + zero_one.Y - zero_zero.Y) / 4.0;
+            let mut d = (one_one.Y - one_zero.Y - zero_one.Y + zero_zero.Y) /4.0;
+
+            let a = a * 511.0;
+            a.round();
+
+            b = b * 50.0;
+            b.round();
+            if b > 15.0 {
+                b = 15.0;
+            }
+            c = c * 50.0;
+            c.round();
+            if c > 15.0 {
+                c = 15.0;
+            }
+            d = d * 50.0;
+            d.round();
+            if d > 15.0 {
+                d = 15.0;
+            }
+
+            let mut curr_block = Image_cos {
+                Pb_avg:avg_pb,
+                Pr_avg:avg_pr,
+                A:a,
+                B:b,
+                C:c,
+                D:d,
+            };
+            transformed_2x2.push(curr_block);
+        }
+        
+    }
+    let transformed_2x2_array = array2::Array2::from_row_major(vid_array.width() / 2, vid_array.height() / 2, transformed_2x2).unwrap();
+    return transformed_2x2_array;
+
+}
 
 
 
