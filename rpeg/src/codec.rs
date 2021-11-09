@@ -3,7 +3,9 @@ use crate::transform;
 
 pub fn compress(filename: &str) {
     let base_array = transform::into_array(filename);
-    transform::to_float(base_array);
+    let float_array = transform::to_float(base_array);
+    let vid_array = transform::rgb_to_comp(float_array);
+    println!("{:?}", vid_array)
     
 
 }
