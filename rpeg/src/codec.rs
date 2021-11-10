@@ -1,4 +1,3 @@
-use array2::Array2;
 use crate::transform;
 
 pub fn compress(filename: &str) {
