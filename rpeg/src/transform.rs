@@ -19,22 +19,23 @@ pub struct Image_vid {
 
 #[derive(Debug,Clone)]
 pub struct Image_cos {
-    Pb_avg: f32,
-    Pr_avg: f32,
+    indexed_pb: f32,
+    indexed_pr: f32,
     A: f32,
     B: f32,
     C: f32,
     D: f32,
 }
     
-pub fn into_array(filename: &str) -> Array2<csc411_image::Pixel> {
+pub fn into_array(filename: &str) -> (Array2<csc411_image::Pixel>, u16) {
     let img = csc411_image::Image::read(Some(filename)).unwrap();
     let mut ppm_array2 = array2::Array2::from_row_major(img.width as usize, img.height as usize, img.pixels).unwrap();
     ppm_array2.trim();
-    return ppm_array2;
+    let denom = img.denominator;
+    return (ppm_array2,denom);
 }
 
-pub fn to_float(pixel_array: Array2<Pixel>) -> Array2<Image_rgb> {
+pub fn to_float(pixel_array: Array2<Pixel>, denom: u16) -> Array2<Image_rgb> {
     let mut float_array: Vec<Image_rgb> = vec![];
     for i in pixel_array.iter_row_major() {
         let curr = &i.2;
@@ -44,9 +45,9 @@ pub fn to_float(pixel_array: Array2<Pixel>) -> Array2<Image_rgb> {
             }
 
             Pixel::Rgb(rgb) => {
-                let cur_red= (rgb.red as f32/ 255.0);
-                let cur_blue:f32 = (rgb.blue as f32 / 255.0);
-                let cur_green:f32 = (rgb.green as f32 / 255.0);
+                let cur_red= rgb.red as f32 / denom as f32;
+                let cur_blue:f32 = rgb.blue as f32 / denom as f32;
+                let cur_green:f32 = rgb.green as f32 / denom as f32;
                 let mut cur_pixel = Image_rgb {
                     R:cur_red, 
                     B:cur_blue, 
@@ -78,48 +79,47 @@ pub fn rgb_to_comp(rgb_array: Array2<Image_rgb>) -> Array2<Image_vid> {
 
 pub fn block_iteration(vid_array: Array2<Image_vid>) -> Array2<Image_cos> {
     let mut transformed_2x2: Vec<Image_cos> = vec![];
-    println!("width-{},height-{}", vid_array.width(), vid_array.height());
-    for i in (0..vid_array.height()).step_by(2) {
-        for j in (0..vid_array.width()).step_by(2) {
+    for i in (0..vid_array.width()).step_by(2) {
+        for j in (0..vid_array.height()).step_by(2) {
             let zero_zero = vid_array.get(j,i).unwrap();
-            let zero_one = vid_array.get(j,i+1).unwrap();
-            let one_zero = vid_array.get(j+1,i).unwrap();
+            let zero_one = vid_array.get(j+1,i).unwrap();
+            let one_zero = vid_array.get(j,i+1).unwrap();
             let one_one = vid_array.get(j+1,i+1).unwrap();
             let avg_pb = (zero_zero.Pb + zero_one.Pb + one_one.Pb + one_zero.Pb) / 4.0;
             let avg_pr = (zero_zero.Pr + zero_one.Pr + one_one.Pr + one_zero.Pr) / 4.0;
             let index_pb = index_of_chroma(avg_pb);
             let index_pr = index_of_chroma(avg_pr);
-            let mut a = (one_one.Y + zero_one.Y + one_zero.Y + zero_zero.Y) / 4.0;
+            let a = (one_one.Y + one_zero.Y + zero_one.Y + zero_zero.Y) / 4.0;
             let mut b = (one_one.Y + one_zero.Y - zero_one.Y - zero_zero.Y) /4.0;
             let mut c = (one_one.Y - one_zero.Y + zero_one.Y - zero_zero.Y) / 4.0;
             let mut d = (one_one.Y - one_zero.Y - zero_one.Y + zero_zero.Y) /4.0;
-
             let a = a * 511.0;
-            a.round();
-
+            let a = a.round();
+            
             b = b * 50.0;
-            b.round();
+            b = b.round();
             if b > 15.0 {
                 b = 15.0;
             }
+            
             c = c * 50.0;
-            c.round();
+            c = c.round();
             if c > 15.0 {
                 c = 15.0;
             }
             d = d * 50.0;
-            d.round();
+            d = d.round();
             if d > 15.0 {
                 d = 15.0;
             }
 
-            let mut curr_block = Image_cos {
-                Pb_avg:avg_pb,
-                Pr_avg:avg_pr,
-                A:a,
-                B:b,
-                C:c,
-                D:d,
+            let curr_block = Image_cos {
+                indexed_pb:index_pb as f32,
+                indexed_pr:index_pr as f32,
+                A:a as f32,
+                B:b as f32,
+                C:c as f32,
+                D:d as f32,
             };
             transformed_2x2.push(curr_block);
         }

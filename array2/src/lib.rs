@@ -95,17 +95,19 @@ impl<T: Clone> Array2<T> {
     pub fn trim(&mut self){        
         if self.width % 2 != 0 {
             //trim the farthest right column from the self.        
-            for i in (0..self.height()).rev() {
-                self.remove(self.height()-1, i);
-            }        
-            self.width -= 1; 
+            for i in (0..self.height).rev() {
+                self.remove(self.width -1, i); 
+            }  
+            self.width -= 1;      
+             
             
         }
-        if self.height() % 2 != 0 {
+        if self.height % 2 != 0 {
             //trim the bottom row from the self.
             for i in (0..self.width).rev(){
-                self.remove(i, self.width);
-            }       
+                self.remove(i, self.height -1);
+            }
+            self.height -= 1;  
         }
     }
 
@@ -144,8 +146,8 @@ mod tests {
 
     #[test]
     fn test_array() {
-        let mut a2 = Array2::from_row_major(3, 3, vec![1,2,3,4,5,6,7,8,9]).unwrap();
+        let mut a2 = Array2::from_row_major(2, 3, vec![1,2,3,4,5,6]).unwrap();
         a2.trim();        
-        assert_eq!(a2.data, [1,2,4,5])
+        assert_eq!(a2.data, [1,2,3,4])
     }
 }
