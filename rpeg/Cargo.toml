@@ -6,7 +6,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-csc411_image = "*"
+csc411_image = "0.3.0"
 csc411_arith = "*"
 array2 = { path = "../array2" }
 bitpack = { path = "../bitpack" }
+scan_fmt = "0.2.6"
