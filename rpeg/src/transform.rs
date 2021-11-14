@@ -154,7 +154,6 @@ pub fn reverse_block(transformed_array: Array2<Image_cos>) -> Array2<Image_vid>{
         let y2 = a - b + c - d;
         let y3 = a + b - c - d;
         let y4 = a + b + c + d;
-        println!("{},{},{},{}", y1,y2,y3,y4);
         let avg_pb = chroma_of_index(curr_block.indexed_pb);
         let avg_pr = chroma_of_index(curr_block.indexed_pr);
         let curr_pixel1 = Image_vid {
