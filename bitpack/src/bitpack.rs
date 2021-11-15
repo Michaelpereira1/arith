@@ -55,12 +55,21 @@ pub fn fitsu(number: u64, width: u64) -> bool {
 /// * `lsb`: the least-significant bit of the bit field
 pub fn gets(word: u64, width: u64, lsb: u64) -> i64 {
     if width <= 64 || (width + lsb) < 64 {
+        let word_shift = word >> lsb;
+        let msb = 1 << (width - 1);
         let value = (1 << width) - 1;
-        println!("this is value: {}", value);
-        //might need a -1 here-------V
-        let word_shift = word >> (lsb);
+        println!("this is value: {:#b}", value);
+        println!("this is word_shift: {:#b}", word_shift);
         let result:i64 = (value & word_shift).try_into().unwrap();
-        return !result + 1;
+        println!("this is result: {:#b}", result);
+        let comparison:u64 = (result as u64) & msb; 
+        println!("this is comparison: {}", comparison);
+        if comparison > 0{
+            return !((1 << width ) - result) + 1;
+        }else{
+            return result;
+        }
+        
     }else{
         panic!("width >= 64 or width <= 0 or (width + lsb) >= 64")
     }
@@ -78,6 +87,7 @@ pub fn getu(word: u64, width: u64, lsb: u64) -> u64 {
         //println!("this is value: {}", value);
         let word_shift = word >> (lsb);
         let result = value & word_shift;
+        //return (1<<width)-result;
         return result;
     }else{
         panic!("width >= 64 or width <= 0 or (width + lsb) >= 64")
@@ -99,10 +109,24 @@ pub fn newu(word: u64, width: u64, lsb: u64, value: u64) -> Option<u64> {
         if fitsu(value, width) == false {
             return None;
         }
-        let hi = (word >> (lsb + width)) << (lsb + width);
-        let lo = (word << 64 - lsb) >> (64 - lsb);
-        let result = hi | lo | (value << lsb);
-        return Some(result);
+        if lsb == 0 {
+            //println!("word is: {}", word);
+            let new_lsb = 1;
+            // println!("lsb = {}", lsb);
+            //println!("new lsb = {}", new_lsb);
+            let hi = (word >> (lsb + width)) << (lsb + width);
+            let lo = (word << 64 - new_lsb) >> (64 - new_lsb);
+            //println!("hi: {}", hi);
+            //println!("lo: {}", lo);
+            let result = hi | lo | (value << 0);
+            return Some(result);
+        }else{
+            let hi = (word >> (lsb + width)) << (lsb + width);
+            let lo = (word << 64 - lsb) >> (64 - lsb);
+            let result = hi | lo | (value << lsb);
+            return Some(result);
+
+        }        
     }else{
         panic!("width >= 64 or width <= 0 or (width + lsb) >= 64");
     }
@@ -124,11 +148,21 @@ pub fn news(word: u64, width: u64, lsb: u64, value: i64) -> Option<u64>{
             return None;
         }
         let hi = (word >> (lsb + width)) << (lsb + width);
+        println!("news -> hi: {}", hi);
         let lo = (word << 64 - lsb) >> (64 - lsb);
-        let unsigned_value:u64 = value as u64;
-        let converted_value = !unsigned_value + 1;
-        let result = hi | lo | (converted_value << lsb);
-        return Some(result);
+        println!("news -> lo: {}", lo);        
+        if value < 0 {
+            let unsigned_value:u64 = value as u64;
+            let converted_value = !unsigned_value + 1;
+            let result = hi | lo | (converted_value << lsb);
+            let real_result = (1 << width) - getu(result, width, lsb);
+            println!("real result: {}", real_result);
+            return Some(real_result << lsb);
+        }else{
+            let unsigned_value:u64 = value as u64;
+            let result = hi | lo | (unsigned_value << lsb);
+            return Some(result);
+        }
     }else{
         panic!("width >= 64 or width <= 0 or (width + lsb) >= 64");
     }    
@@ -166,6 +200,8 @@ mod tests {
         assert_eq!(unsigned_fit, true);
         assert_eq!(eq_check, bitpack::getu(128, 3, 8));
         assert_eq!(signed_eq_check, bitpack::gets(128, 2, 5));
+        assert_eq!(bitpack::news(0, 5, 13, -3).unwrap() , 29);
+        assert_eq!(bitpack::news(0, 5, 8, -1).unwrap() , 31);
   
     }
     #[test]

@@ -3,6 +3,9 @@ use array2::Array2;
 use csc411_arith::{chroma_of_index, index_of_chroma};
 use csc411_image::{Image, Pixel, Rgb};
 use csc411_image;
+use bitpack::bitpack;
+use std::convert::TryInto;
+
 
 #[derive(Debug,Clone,Copy)]
 pub struct Image_rgb {
@@ -242,4 +245,52 @@ pub fn rgb_to_image(rgb_array: Array2<Image_rgb>) -> Image {
     return decompressed_image; 
 }
 
+pub fn pack_into_word() -> u64{
+    let current_block = Image_cos{
+        A: 253.0,
+        B: 7.0,
+        C: -3.0,
+        D: -1.0,
+        indexed_pb: 10,
+        indexed_pr: 14,
+    };
+    let word:u64 = 0;
+    let new_word_a = bitpack::newu(word, 9, 23, current_block.A as u64).unwrap();
+    let new_word_b = bitpack::news(word, 5, 18, current_block.B as i64).unwrap();
+    let new_word_c = bitpack::news(word, 5, 13, current_block.C as i64).unwrap();
+    let new_word_d = bitpack::news(word, 5, 8, current_block.D as i64).unwrap();
+    let new_word_pb = bitpack::newu(word, 4, 4, current_block.indexed_pb as u64).unwrap();
+    let new_word_pr = bitpack::newu(word, 4, 0, current_block.indexed_pr as u64).unwrap();
+    println!("this is a: {}", new_word_a);
+    println!("this is b: {}", new_word_b);
+    println!("this is c: {}", new_word_c);
+    println!("this is d: {}", new_word_d);
+    println!("this is pb: {}", new_word_pb);
+    println!("this is pr: {}", new_word_pr);
+    let packed_word = new_word_a + new_word_b + new_word_c + new_word_d + new_word_pb + new_word_pr;
+    println!("this is word: {}", packed_word);
+    return packed_word;
+}
+
+pub fn unpack_word(word: u64) -> Image_cos{
+    //let word:u64 = 2124398510;
+    let unpack_a = bitpack::getu(word, 9, 23);
+    println!("unpack_a: {}", unpack_a);
+    let unpack_b = bitpack::gets(word, 5, 18);
+    let unpack_c = bitpack::gets(word, 5, 13);
+    println!("unpack_c: {}", unpack_c);
+    let unpack_d = bitpack::gets(word, 5, 8);
+    let unpack_pb = bitpack::getu(word, 4, 4);
+    let unpack_pr = bitpack::getu(word, 4, 0);
+    let current_block = Image_cos{
+        A: unpack_a as f32,
+        B: unpack_b as f32,
+        C: unpack_c as f32,
+        D: unpack_d as f32,
+        indexed_pb: unpack_pb as usize,
+        indexed_pr: unpack_pr as usize,
+    };
+    println!("this is unpacked block: {:#?}", current_block);
+    return current_block;
+}
 

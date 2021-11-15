@@ -3,7 +3,7 @@ use std::env;
 #[macro_use] use scan_fmt::scan_fmt;
 
 pub fn compress(filename: &str) {
-    let (base_array, denom) = transform::into_array(filename);
+    /*let (base_array, denom) = transform::into_array(filename);
     //println!("{:?}", base_array);
     let float_array = transform::to_float(base_array, denom);
     //println!("{:?}",float_array);
@@ -15,7 +15,9 @@ pub fn compress(filename: &str) {
     let new_rgb_array = transform::component_to_rgb(new_vid_array);
     //println!("{:#?}",new_rgb_array);
     let decompressed_image= transform::rgb_to_image(new_rgb_array);
-    decompressed_image.write(None).unwrap();
+    decompressed_image.write(None).unwrap();*/
+    let word:u64 = transform::pack_into_word();
+    let unpacked_word = transform::unpack_word(word);
     
 }
 
