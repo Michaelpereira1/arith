@@ -1,6 +1,4 @@
-use crate::transform::{self, output_compressed};
-use std::{array, env, process::Output};
-
+use crate::transform;
 pub fn compress(filename: &str) {
     let (base_array, denom) = transform::into_array(filename);
     let float_array = transform::to_float(base_array, denom);

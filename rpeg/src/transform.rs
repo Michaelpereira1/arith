@@ -1,40 +1,35 @@
-use std::array;
-use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::thread::current;
-use std::{arch::x86_64::_mm256_undefined_si256, process::exit, vec};
+
+use std::io::{self, Read, Write};
+use std::{process::exit, vec};
 use array2::Array2;
 use csc411_arith::{chroma_of_index, index_of_chroma};
 use csc411_image::{Image, Pixel, Rgb};
 use csc411_image;
 use bitpack::bitpack;
-use std::convert::TryInto;
-#[macro_use] use scan_fmt::scan_fmt;
-
+use scan_fmt::scan_fmt;
 
 #[derive(Debug,Clone,Copy)]
-pub struct Image_rgb {
-    R: f32,
-    G: f32,
-    B: f32,
+pub struct ImageRgb {
+    r: f32,
+    g: f32,
+    b: f32,
 }
 
 #[derive(Debug,Clone,Copy)]
-pub struct Image_vid {
-    Y: f32,
-    Pb: f32,
-    Pr: f32,
-    index: usize,
+pub struct ImageVid {
+    y: f32,
+    pb: f32,
+    pr: f32,
 }
 
 #[derive(Debug,Clone,Copy)]
-pub struct Image_cos {
+pub struct ImageCos {
     indexed_pb: usize,
     indexed_pr: usize,
-    A: f32,
-    B: f32,
-    C: f32,
-    D: f32,
+    a: f32,
+    b: f32,
+    c: f32,
+    d: f32,
 }
     
 pub fn into_array(filename: &str) -> (Array2<csc411_image::Pixel>, u16) {
@@ -45,22 +40,22 @@ pub fn into_array(filename: &str) -> (Array2<csc411_image::Pixel>, u16) {
     return (ppm_array2,denom);
 }
 
-pub fn to_float(pixel_array: Array2<Pixel>, denom: u16) -> Array2<Image_rgb> {
-    let mut float_array: Vec<Image_rgb> = vec![];
+pub fn to_float(pixel_array: Array2<Pixel>, denom: u16) -> Array2<ImageRgb> {
+    let mut float_array: Vec<ImageRgb> = vec![];
     for i in pixel_array.iter_row_major() {
         let curr = i.2;
         match curr {
-            Pixel::Gray(Gray) => {
+            Pixel::Gray(_gray) => {
                 exit(0);
             }
             Pixel::Rgb(rgb) => {
                 let cur_red= rgb.red as f32 / denom as f32;
                 let cur_blue:f32 = rgb.blue as f32 / denom as f32;
                 let cur_green:f32 = rgb.green as f32 / denom as f32;
-                let mut cur_pixel = Image_rgb {
-                    R:cur_red, 
-                    B:cur_blue, 
-                    G:cur_green
+                let cur_pixel = ImageRgb {
+                    r:cur_red, 
+                    b:cur_blue, 
+                    g:cur_green
                 };
                 float_array.push(cur_pixel);
             }
@@ -70,13 +65,13 @@ pub fn to_float(pixel_array: Array2<Pixel>, denom: u16) -> Array2<Image_rgb> {
     return float_array2;
 }
 
-pub fn rgb_to_comp(rgb_array: Array2<Image_rgb>) -> Array2<Image_vid> {
-    let mut temp_array: Vec<Image_vid> = vec![];
-    fn rgb_conv (rgb: Image_rgb) -> Image_vid {
-        let y = (0.299 * rgb.R) + (0.587 * rgb.G) + (0.114 * rgb.B);
-        let pb = (-0.168736 * rgb.R) - (0.331264 * rgb.G) + (0.5 * rgb.B);
-        let pr = (0.5 * rgb.R) - (0.418688 * rgb.G) - (0.081312 * rgb.B);
-        return Image_vid { Y: y, Pb: pb, Pr: pr, index:0}
+pub fn rgb_to_comp(rgb_array: Array2<ImageRgb>) -> Array2<ImageVid> {
+    let mut temp_array: Vec<ImageVid> = vec![];
+    fn rgb_conv (rgb: ImageRgb) -> ImageVid {
+        let y = (0.299 * rgb.r) + (0.587 * rgb.g) + (0.114 * rgb.b);
+        let pb = (-0.168736 * rgb.r) - (0.331264 * rgb.g) + (0.5 * rgb.b);
+        let pr = (0.5 * rgb.r) - (0.418688 * rgb.g) - (0.081312 * rgb.b);
+        return ImageVid { y: y, pb: pb, pr: pr}
     }
     for i in rgb_array.iter_row_major() {
         temp_array.push(rgb_conv(*i.2))
@@ -86,22 +81,22 @@ pub fn rgb_to_comp(rgb_array: Array2<Image_rgb>) -> Array2<Image_vid> {
 
 }
 
-pub fn block_iteration(vid_array: Array2<Image_vid>) -> Array2<Image_cos> {
-    let mut transformed_2x2: Vec<Image_cos> = vec![];
+pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
+    let mut transformed_2x2: Vec<ImageCos> = vec![];
     for j in (0..vid_array.height()).step_by(2) {
         for i in (0..vid_array.width()).step_by(2) {
             let zero_zero = vid_array.get(i,j).unwrap();
             let zero_one = vid_array.get(i+1,j).unwrap();
             let one_zero = vid_array.get(i,j+1).unwrap();
             let one_one = vid_array.get(i+1,j+1).unwrap();
-            let avg_pb = (zero_zero.Pb + zero_one.Pb + one_one.Pb + one_zero.Pb) / 4.0;
-            let avg_pr = (zero_zero.Pr + zero_one.Pr + one_one.Pr + one_zero.Pr) / 4.0;
+            let avg_pb = (zero_zero.pb + zero_one.pb + one_one.pb + one_zero.pb) / 4.0;
+            let avg_pr = (zero_zero.pr + zero_one.pr + one_one.pr + one_zero.pr) / 4.0;
             let index_pb = index_of_chroma(avg_pb);
             let index_pr = index_of_chroma(avg_pr);
-            let mut a = (one_one.Y + one_zero.Y + zero_one.Y + zero_zero.Y) / 4.0;
-            let mut b = (one_one.Y + one_zero.Y - zero_one.Y - zero_zero.Y) /4.0;
-            let mut c = (one_one.Y - one_zero.Y + zero_one.Y - zero_zero.Y) / 4.0;
-            let mut d = (one_one.Y - one_zero.Y - zero_one.Y + zero_zero.Y) /4.0;
+            let mut a = (one_one.y + one_zero.y + zero_one.y + zero_zero.y) / 4.0;
+            let mut b = (one_one.y + one_zero.y - zero_one.y - zero_zero.y) /4.0;
+            let mut c = (one_one.y - one_zero.y + zero_one.y - zero_zero.y) / 4.0;
+            let mut d = (one_one.y - one_zero.y - zero_one.y + zero_zero.y) /4.0;
             if a < 0.0 {
                 a = 0.0;
             } else if a > 1.0 {
@@ -138,13 +133,13 @@ pub fn block_iteration(vid_array: Array2<Image_vid>) -> Array2<Image_cos> {
                 d = 15.0;
             }
 
-            let curr_block = Image_cos {
+            let curr_block = ImageCos {
                 indexed_pb:index_pb,
                 indexed_pr:index_pr,
-                A:a as f32,
-                B:b as f32,
-                C:c as f32,
-                D:d as f32,
+                a:a as f32,
+                b:b as f32,
+                c:c as f32,
+                d:d as f32,
             };
             transformed_2x2.push(curr_block);
         }
@@ -155,12 +150,12 @@ pub fn block_iteration(vid_array: Array2<Image_vid>) -> Array2<Image_cos> {
 
 }
 
-pub fn reverse_block(transformed_array: Array2<Image_cos>) -> Array2<Image_vid>{
+pub fn reverse_block(transformed_array: Array2<ImageCos>) -> Array2<ImageVid>{
     let mut counter = 0;
     let width = transformed_array.width() * 2;
     let height = transformed_array.height() * 2;
-    let blank_struct = Image_vid {Y: 0.0 , Pb:0.0, Pr: 0.0, index:0};
-    let mut working_vec: Vec<Image_vid> = vec![blank_struct; width * height];
+    let blank_struct = ImageVid {y: 0.0 , pb:0.0, pr: 0.0};
+    let mut working_vec: Vec<ImageVid> = vec![blank_struct; width * height];
     for i in transformed_array.iter_row_major() {
         if counter == 0 {
             counter = 0;
@@ -168,41 +163,35 @@ pub fn reverse_block(transformed_array: Array2<Image_cos>) -> Array2<Image_vid>{
             counter += width;
         }
         let curr_block = i.2;
-        let a = curr_block.A / 511.0;
-        let b = curr_block.B / 50.0;
-        let c = curr_block.C / 50.0;
-        let d = curr_block.D / 50.0;
+        let a = curr_block.a / 511.0;
+        let b = curr_block.b / 50.0;
+        let c = curr_block.c / 50.0;
+        let d = curr_block.d / 50.0;
         let y1 = a - b - c + d;
         let y2 = a - b + c - d;
         let y3 = a + b - c - d;
         let y4 = a + b + c + d;
         let avg_pb = chroma_of_index(curr_block.indexed_pb);
         let avg_pr = chroma_of_index(curr_block.indexed_pr);
-        let curr_pixel1 = Image_vid {
-            Y: y1,
-            Pb: avg_pb,
-            Pr: avg_pr,
-            index: counter,
+        let curr_pixel1 = ImageVid {
+            y: y1,
+            pb: avg_pb,
+            pr: avg_pr,
         };
-        let curr_pixel2 = Image_vid {
-            Y: y2,
-            Pb: avg_pb,
-            Pr: avg_pr,
-            index: counter + 1,
-            
+        let curr_pixel2 = ImageVid {
+            y: y2,
+            pb: avg_pb,
+            pr: avg_pr,
         };
-        let curr_pixel3 = Image_vid {
-            Y: y3,
-            Pb: avg_pb,
-            Pr: avg_pr,
-            index: counter + width,
+        let curr_pixel3 = ImageVid {
+            y: y3,
+            pb: avg_pb,
+            pr: avg_pr,
         };
-        let curr_pixel4 = Image_vid {
-            Y: y4,
-            Pb: avg_pb,
-            Pr: avg_pr,
-            index: counter + width + 1,
-            
+        let curr_pixel4 = ImageVid {
+            y: y4,
+            pb: avg_pb,
+            pr: avg_pr,      
         };
         
         working_vec[counter] = curr_pixel1; 
@@ -217,20 +206,20 @@ pub fn reverse_block(transformed_array: Array2<Image_cos>) -> Array2<Image_vid>{
  
 }
 
-pub fn component_to_rgb(component_array: Array2<Image_vid>) -> Array2<Image_rgb> {
+pub fn component_to_rgb(component_array: Array2<ImageVid>) -> Array2<ImageRgb> {
     let mut rgb_array = vec![];
     for i in component_array.iter_row_major() {
         let curr_vid_pixel = i.2;
-        let y = curr_vid_pixel.Y;
-        let pb = curr_vid_pixel.Pb;
-        let pr = curr_vid_pixel.Pr;
+        let y = curr_vid_pixel.y;
+        let pb = curr_vid_pixel.pb;
+        let pr = curr_vid_pixel.pr;
         let r = ((1.0 * y) + (0.0 * pb) + (1.402 * pr)) * 255.0;
         let g = ((1.0 * y) - (0.344136 * pb) - (0.714136 * pr)) * 255.0;
         let b = ((1.0 * y) + (1.772 * pb) + (0.0 * pr)) * 255.0;
-        let curr_rgb_pixel = Image_rgb {
-            R:r,
-            G:g,
-            B:b,
+        let curr_rgb_pixel = ImageRgb {
+            r:r,
+            g:g,
+            b:b,
         };
         rgb_array.push(curr_rgb_pixel);
     }
@@ -239,13 +228,13 @@ pub fn component_to_rgb(component_array: Array2<Image_vid>) -> Array2<Image_rgb>
     return rgb_array2;
 }
 
-pub fn rgb_to_image(rgb_array: Array2<Image_rgb>) -> Image {
+pub fn rgb_to_image(rgb_array: Array2<ImageRgb>) -> Image {
     let mut pixel_array: Vec<Pixel> = vec![];
     for i in rgb_array.iter_row_major() {
         let curr_rgb_pixel = i.2;
-        let r = curr_rgb_pixel.R;
-        let g = curr_rgb_pixel.G;
-        let b = curr_rgb_pixel.B;
+        let r = curr_rgb_pixel.r;
+        let g = curr_rgb_pixel.g;
+        let b = curr_rgb_pixel.b;
         let curr_pixel = Pixel::Rgb(Rgb {
             red:r as u16,
             green:g as u16,
@@ -264,16 +253,15 @@ pub fn rgb_to_image(rgb_array: Array2<Image_rgb>) -> Image {
     return decompressed_image; 
 }
 
-pub fn convert_to_output (array_2x2: Array2<Image_cos>) -> Array2<u64> {
+pub fn convert_to_output (array_2x2: Array2<ImageCos>) -> Array2<u64> {
     let mut word_vec:Vec<u64> = vec![];
-    let mut counter = 0;
     for i in array_2x2.iter_row_major() {
         let current_block = *i.2;
         let word:u64 = 0;
-        let new_word_a = bitpack::newu(word, 9, 23, current_block.A as u64).unwrap();
-        let new_word_b = bitpack::news(word, 5, 18, current_block.B as i64).unwrap();
-        let new_word_c = bitpack::news(word, 5, 13, current_block.C as i64).unwrap();
-        let new_word_d = bitpack::news(word, 5, 8, current_block.D as i64).unwrap();
+        let new_word_a = bitpack::newu(word, 9, 23, current_block.a as u64).unwrap();
+        let new_word_b = bitpack::news(word, 5, 18, current_block.b as i64).unwrap();
+        let new_word_c = bitpack::news(word, 5, 13, current_block.c as i64).unwrap();
+        let new_word_d = bitpack::news(word, 5, 8, current_block.d as i64).unwrap();
         let new_word_pb = bitpack::newu(word, 4, 4, current_block.indexed_pb as u64).unwrap();
         let new_word_pr = bitpack::newu(word, 4, 0, current_block.indexed_pr as u64).unwrap();
         let packed_word = new_word_a + new_word_b + new_word_c + new_word_d + new_word_pb + new_word_pr;
@@ -283,8 +271,8 @@ pub fn convert_to_output (array_2x2: Array2<Image_cos>) -> Array2<u64> {
     return word_array2;
 }
 
-pub fn word_to_cos (word_array: Array2<u64>) -> Array2<Image_cos> {
-    let mut cos_vec:Vec<Image_cos> = vec![];
+pub fn word_to_cos (word_array: Array2<u64>) -> Array2<ImageCos> {
+    let mut cos_vec:Vec<ImageCos> = vec![];
     for i in word_array.iter_row_major() {
         let current_word = *i.2;
         let current_block = unpack_word(current_word);
@@ -294,7 +282,7 @@ pub fn word_to_cos (word_array: Array2<u64>) -> Array2<Image_cos> {
     return cos_array2;
 }
 
-pub fn unpack_word(word: u64) -> Image_cos{
+pub fn unpack_word(word: u64) -> ImageCos{
     //let word:u64 = 2124398510;
     let unpack_a = bitpack::getu(word, 9, 23);
     let unpack_b = bitpack::gets(word, 5, 18);
@@ -302,11 +290,11 @@ pub fn unpack_word(word: u64) -> Image_cos{
     let unpack_d = bitpack::gets(word, 5, 8);
     let unpack_pb = bitpack::getu(word, 4, 4);
     let unpack_pr = bitpack::getu(word, 4, 0);
-    let current_block = Image_cos{
-        A: unpack_a as f32,
-        B: unpack_b as f32,
-        C: unpack_c as f32,
-        D: unpack_d as f32,
+    let current_block = ImageCos{
+        a: unpack_a as f32,
+        b: unpack_b as f32,
+        c: unpack_c as f32,
+        d: unpack_d as f32,
         indexed_pb: unpack_pb as usize,
         indexed_pr: unpack_pr as usize,
     };
