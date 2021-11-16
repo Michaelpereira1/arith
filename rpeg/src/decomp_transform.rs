@@ -30,6 +30,11 @@ pub struct ImageCos {
     c: f32,
     d: f32,
 }
+///  Reads through the compressed image and returns an "array2" of 64 bit words, with 
+///  the lower 32 bits being occupied by our ImageCos values. Returns an "array2" struct of those words.
+///
+/// # Arguments:
+/// * `filename`: The file containing the compressed ppm image
 pub fn get_compressed(filename: &str) -> Array2<u64> {
     let mut word_vec: Vec<u64> = vec![];
     let mut reader: Box<dyn std::io::BufRead> = Box::new(
@@ -56,7 +61,11 @@ pub fn get_compressed(filename: &str) -> Array2<u64> {
     
     
 }
-
+/// goes through each word in the "word_array" and unpacks the ImageCos values.
+/// returns those values (a, b, c, d, avg pb, avg pr) in an "array2" struct of ImageCos.
+///
+/// # Arguments:
+/// * `word_array`: the "array2" containing our words that were packed previously.
 pub fn word_to_cos (word_array: Array2<u64>) -> Array2<ImageCos> {
     let mut cos_vec:Vec<ImageCos> = vec![];
     for i in word_array.iter_row_major() {
@@ -68,6 +77,11 @@ pub fn word_to_cos (word_array: Array2<u64>) -> Array2<ImageCos> {
     return cos_array2;
 }
 
+/// Iterates through the "transformed_array" and extrapolates the values of each pixel in the 2x2 block
+/// back to values close to their original. returns an "array2" struct of our component video values.
+///
+/// # Arguments:
+/// * `transformed_array`: The "array2" of ImageCos values.
 pub fn reverse_block(transformed_array: Array2<ImageCos>) -> Array2<ImageVid>{
     let mut counter = 0;
     let width = transformed_array.width() * 2;
@@ -123,7 +137,11 @@ pub fn reverse_block(transformed_array: Array2<ImageCos>) -> Array2<ImageVid>{
     return vid_array2;
  
 }
-
+/// Iterates through the "component_array" and transforms the values of each pixel back to their floating 
+/// point RGB values. Returns an "array2" struct of these RGB values for each pixel.
+///
+/// # Arguments:
+/// * `component_array`: The "array2" of component video values.
 pub fn component_to_rgb(component_array: Array2<ImageVid>) -> Array2<ImageRgb> {
     let mut rgb_array = vec![];
     for i in component_array.iter_row_major() {
@@ -145,7 +163,11 @@ pub fn component_to_rgb(component_array: Array2<ImageVid>) -> Array2<ImageRgb> {
     let rgb_array2 = array2::Array2::from_row_major(component_array.width(), component_array.height(), rgb_array).unwrap();
     return rgb_array2;
 }
-
+/// Iterates through the "rgb_array" and transforms the values of each RGB pixel back to 
+/// integers. Returns our decompressed image.
+///
+/// # Arguments:
+/// * `rgb_array`: The "array2" of floating point RGB values.
 pub fn rgb_to_image(rgb_array: Array2<ImageRgb>) -> Image {
     let mut pixel_array: Vec<Pixel> = vec![];
     for i in rgb_array.iter_row_major() {
@@ -170,7 +192,11 @@ pub fn rgb_to_image(rgb_array: Array2<ImageRgb>) -> Image {
     };
     return decompressed_image; 
 }
-
+/// Goes through and extracts each "ImageCos" value from the 32 bit word and then returns
+/// them as a struct of those "ImageCos" values
+///
+/// # Arguments:
+/// * `word`: a 64 bit word containing our "ImageCos" values in the lower 32 bits.
 fn unpack_word(word: u64) -> ImageCos{
     let unpack_a = bitpack::getu(word, 9, 23);
     let unpack_b = bitpack::gets(word, 5, 18);

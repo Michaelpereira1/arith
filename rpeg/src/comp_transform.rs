@@ -29,7 +29,12 @@ pub struct ImageCos {
     c: f32,
     d: f32,
 }
-    
+
+/// Loads the ppm image from a file, trimming the width/height if necessary.
+/// Returns a "array2" struct of pixels with our RGB values. 
+///
+/// # Arguments:
+/// * `filename`: The file containing the ppm image
 pub fn into_array(filename: &str) -> (Array2<csc411_image::Pixel>, u16) {
     let img = csc411_image::Image::read(Some(filename)).unwrap();
     let mut ppm_array2 = array2::Array2::from_row_major(img.width as usize, img.height as usize, img.pixels).unwrap();
@@ -38,6 +43,13 @@ pub fn into_array(filename: &str) -> (Array2<csc411_image::Pixel>, u16) {
     return (ppm_array2,denom);
 }
 
+/// Iterates through our "array2" of pixels and transforms each value into a
+/// floating point representation. Returns an "array2" struct of pixels with the RGB values being 
+/// represented by floating point numbers.
+///
+/// # Arguments:
+/// * `pixel_array`: The "array2" of pixels
+/// * `denom`: The denominator of the RGB values
 pub fn to_float(pixel_array: Array2<Pixel>, denom: u16) -> Array2<ImageRgb> {
     let mut float_array: Vec<ImageRgb> = vec![];
     for i in pixel_array.iter_row_major() {
@@ -62,7 +74,11 @@ pub fn to_float(pixel_array: Array2<Pixel>, denom: u16) -> Array2<ImageRgb> {
     let float_array2 = array2::Array2::from_row_major(pixel_array.width(), pixel_array.height(), float_array).unwrap();
     return float_array2;
 }
-
+/// Iterates through our "array2" of pixels and transforms the RGB values to 
+/// component video values. Returns an "array2" struct of pixels with component video values.
+///
+/// # Arguments:
+/// * `rgb_array`: The "array2" of pixels as f32's
 pub fn rgb_to_comp(rgb_array: Array2<ImageRgb>) -> Array2<ImageVid> {
     let mut temp_array: Vec<ImageVid> = vec![];
     fn rgb_conv (rgb: ImageRgb) -> ImageVid {
@@ -78,7 +94,12 @@ pub fn rgb_to_comp(rgb_array: Array2<ImageRgb>) -> Array2<ImageVid> {
     return comp_array2;
 
 }
-
+/// Iterates through our "array2" of component video values in 2x2 blocks in order to 
+/// perform DCT and it returns an "array2" struct of the values we later need to pack into a word.
+/// These values are a, b, c, d, average pb, and average pr.
+///
+/// # Arguments:
+/// * `vid_array`: The "array2" of component video values
 pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
     let mut transformed_2x2: Vec<ImageCos> = vec![];
     for j in (0..vid_array.height()).step_by(2) {
@@ -147,7 +168,12 @@ pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
     return transformed_2x2_array;
 
 }
-
+/// Iterates through our "array2" of values that need to be packed into a word and packs
+/// each value of the "array2" ImageCos struct and packs it into the lower 32 bits of a 64 bit word. 
+/// returns an "array2" of these words.
+///
+/// # Arguments:
+/// * `array_2x2`: The "array2" of a, b, c, d, avg pb, and avg pr
 pub fn convert_to_words (array_2x2: Array2<ImageCos>) -> Array2<u64> {
     let mut word_vec:Vec<u64> = vec![];
     for i in array_2x2.iter_row_major() {
@@ -159,7 +185,10 @@ pub fn convert_to_words (array_2x2: Array2<ImageCos>) -> Array2<u64> {
     return word_array2;
 }
 
-
+/// Takes each word in the "word_array" and writes them to disk. 
+///
+/// # Arguments:
+/// * `word_array`: the "array2" of 32 bit words.  
 pub fn output_compressed(word_array: Array2<u64>) {
     println!("Compressed image format 2\n{} {}", (word_array.width() * 2) as u32, (word_array.height() * 2) as u32);
     for i in word_array.iter_row_major() {
@@ -169,7 +198,11 @@ pub fn output_compressed(word_array: Array2<u64>) {
     }
     
 }
-
+/// Takes an "empty" 64 bit word of all zeroes and packs each value of the ImageCos struct into it's
+/// proper position within the lower 32 bits of the word, and then returns our newly packed word. 
+///
+/// # Arguments:
+/// * `block`: a single element of our "array2" of ImageCos. Contains the values we need to pack into a word. 
 fn pack_word(block: ImageCos) -> u64 {
     let word:u64 = 0;
         let new_word_a = bitpack::newu(word, 9, 23, block.a as u64).unwrap();
