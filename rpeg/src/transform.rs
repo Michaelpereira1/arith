@@ -1,5 +1,6 @@
 
 use std::io::{self, Read, Write};
+use std::thread::current;
 use std::{process::exit, vec};
 use array2::Array2;
 use csc411_arith::{chroma_of_index, index_of_chroma};
@@ -257,15 +258,8 @@ pub fn convert_to_output (array_2x2: Array2<ImageCos>) -> Array2<u64> {
     let mut word_vec:Vec<u64> = vec![];
     for i in array_2x2.iter_row_major() {
         let current_block = *i.2;
-        let word:u64 = 0;
-        let new_word_a = bitpack::newu(word, 9, 23, current_block.a as u64).unwrap();
-        let new_word_b = bitpack::news(word, 5, 18, current_block.b as i64).unwrap();
-        let new_word_c = bitpack::news(word, 5, 13, current_block.c as i64).unwrap();
-        let new_word_d = bitpack::news(word, 5, 8, current_block.d as i64).unwrap();
-        let new_word_pb = bitpack::newu(word, 4, 4, current_block.indexed_pb as u64).unwrap();
-        let new_word_pr = bitpack::newu(word, 4, 0, current_block.indexed_pr as u64).unwrap();
-        let packed_word = new_word_a + new_word_b + new_word_c + new_word_d + new_word_pb + new_word_pr;
-        word_vec.push(packed_word);  
+        let current_word = pack_word(current_block);
+        word_vec.push(current_word);  
     }
     let word_array2 = array2::Array2::from_row_major(array_2x2.width(),array_2x2.height(), word_vec).unwrap();
     return word_array2;
@@ -283,7 +277,6 @@ pub fn word_to_cos (word_array: Array2<u64>) -> Array2<ImageCos> {
 }
 
 pub fn unpack_word(word: u64) -> ImageCos{
-    //let word:u64 = 2124398510;
     let unpack_a = bitpack::getu(word, 9, 23);
     let unpack_b = bitpack::gets(word, 5, 18);
     let unpack_c = bitpack::gets(word, 5, 13);
@@ -299,6 +292,18 @@ pub fn unpack_word(word: u64) -> ImageCos{
         indexed_pr: unpack_pr as usize,
     };
     return current_block;
+}
+
+pub fn pack_word(block: ImageCos) -> u64 {
+    let word:u64 = 0;
+        let new_word_a = bitpack::newu(word, 9, 23, block.a as u64).unwrap();
+        let new_word_b = bitpack::news(word, 5, 18, block.b as i64).unwrap();
+        let new_word_c = bitpack::news(word, 5, 13, block.c as i64).unwrap();
+        let new_word_d = bitpack::news(word, 5, 8, block.d as i64).unwrap();
+        let new_word_pb = bitpack::newu(word, 4, 4, block.indexed_pb as u64).unwrap();
+        let new_word_pr = bitpack::newu(word, 4, 0, block.indexed_pr as u64).unwrap();
+        let packed_word = new_word_a + new_word_b + new_word_c + new_word_d + new_word_pb + new_word_pr;
+        return packed_word;
 }
 
 pub fn output_compressed(word_array: Array2<u64>) {
