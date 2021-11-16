@@ -58,12 +58,8 @@ pub fn gets(word: u64, width: u64, lsb: u64) -> i64 {
         let word_shift = word >> lsb;
         let msb = 1 << (width - 1);
         let value = (1 << width) - 1;
-        println!("this is value: {:#b}", value);
-        println!("this is word_shift: {:#b}", word_shift);
         let result:i64 = (value & word_shift).try_into().unwrap();
-        println!("this is result: {:#b}", result);
         let comparison:u64 = (result as u64) & msb; 
-        println!("this is comparison: {}", comparison);
         if comparison > 0{
             return !((1 << width ) - result) + 1;
         }else{
@@ -84,10 +80,8 @@ pub fn gets(word: u64, width: u64, lsb: u64) -> i64 {
 pub fn getu(word: u64, width: u64, lsb: u64) -> u64 {
     if width <= 64 || (width + lsb) < 64 {
         let value = (1 << width) - 1;
-        //println!("this is value: {}", value);
         let word_shift = word >> (lsb);
         let result = value & word_shift;
-        //return (1<<width)-result;
         return result;
     }else{
         panic!("width >= 64 or width <= 0 or (width + lsb) >= 64")
@@ -110,14 +104,9 @@ pub fn newu(word: u64, width: u64, lsb: u64, value: u64) -> Option<u64> {
             return None;
         }
         if lsb == 0 {
-            //println!("word is: {}", word);
             let new_lsb = 1;
-            // println!("lsb = {}", lsb);
-            //println!("new lsb = {}", new_lsb);
             let hi = (word >> (lsb + width)) << (lsb + width);
             let lo = (word << 64 - new_lsb) >> (64 - new_lsb);
-            //println!("hi: {}", hi);
-            //println!("lo: {}", lo);
             let result = hi | lo | (value << 0);
             return Some(result);
         }else{
@@ -148,15 +137,12 @@ pub fn news(word: u64, width: u64, lsb: u64, value: i64) -> Option<u64>{
             return None;
         }
         let hi = (word >> (lsb + width)) << (lsb + width);
-        println!("news -> hi: {}", hi);
-        let lo = (word << 64 - lsb) >> (64 - lsb);
-        println!("news -> lo: {}", lo);        
+        let lo = (word << 64 - lsb) >> (64 - lsb);       
         if value < 0 {
             let unsigned_value:u64 = value as u64;
             let converted_value = !unsigned_value + 1;
             let result = hi | lo | (converted_value << lsb);
             let real_result = (1 << width) - getu(result, width, lsb);
-            println!("real result: {}", real_result);
             return Some(real_result << lsb);
         }else{
             let unsigned_value:u64 = value as u64;

@@ -109,7 +109,7 @@ impl<T: Clone> Array2<T> {
             }
             self.height -= 1;  
         }
-        println!("The height is - {}, the width is - {}", self.height, self.width);
+        
     }
 
     pub fn iter_row_major(&self) -> impl Iterator<Item = (usize, usize, &T)> {
