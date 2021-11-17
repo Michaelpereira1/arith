@@ -30,6 +30,10 @@ pub struct ImageCos {
     d: f32,
 }
 
+
+pub const BRIGHTNESS_SCALAR: f32 = 511.0;
+pub const SCALAR: f32 = 50.0;
+
 /// Loads the ppm image from a file, trimming the width/height if necessary.
 /// Returns a "array2" struct of pixels with our RGB values. 
 ///
@@ -122,7 +126,7 @@ pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
                 a = 1.0;
             }
 
-            a = a * 511.0;
+            a = a * BRIGHTNESS_SCALAR;
             a = a.floor();
             
             if b < -0.3 {
@@ -130,7 +134,7 @@ pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
             } else if b > 0.3 {
                 b = 0.3;
             }
-            b = b * 50.0;
+            b = b * SCALAR;
             b = b.floor();
             
             if c < -0.3 {
@@ -138,7 +142,7 @@ pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
             } else if c > 0.3 {
                 c = 0.3;
             }
-            c = c * 50.0;
+            c = c * SCALAR;
             c = c.floor();
             
             if d < -0.3 {
@@ -146,11 +150,8 @@ pub fn block_iteration(vid_array: Array2<ImageVid>) -> Array2<ImageCos> {
             } else if d > 0.3 {
                 d = 0.3;
             }
-            d = d * 50.0;
+            d = d * SCALAR;
             d = d.floor();
-            if d > 15.0 {
-                d = 15.0;
-            }
 
             let curr_block = ImageCos {
                 indexed_pb:index_pb,

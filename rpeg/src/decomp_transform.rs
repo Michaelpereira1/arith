@@ -6,6 +6,7 @@ use csc411_image::{Image, Pixel, Rgb};
 use csc411_image;
 use bitpack::bitpack;
 use scan_fmt::scan_fmt;
+use crate::comp_transform::{BRIGHTNESS_SCALAR, SCALAR};
 
 #[derive(Debug,Clone,Copy)]
 pub struct ImageRgb {
@@ -95,10 +96,10 @@ pub fn reverse_block(transformed_array: Array2<ImageCos>) -> Array2<ImageVid>{
             counter += width;
         }
         let curr_block = i.2;
-        let a = curr_block.a / 511.0;
-        let b = curr_block.b / 50.0;
-        let c = curr_block.c / 50.0;
-        let d = curr_block.d / 50.0;
+        let a = curr_block.a / BRIGHTNESS_SCALAR;
+        let b = curr_block.b / SCALAR;
+        let c = curr_block.c / SCALAR;
+        let d = curr_block.d / SCALAR;
         let y1 = a - b - c + d;
         let y2 = a - b + c - d;
         let y3 = a + b - c - d;
